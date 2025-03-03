@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-cd ..
+mkdir "repos" || echo "repos directory already exists"
+cd repos
+
 git clone https://github.com/cfioretti/pizzamaker-fe || echo "pizzamaker-fe repo already exists"
 git clone https://github.com/cfioretti/recipe-manager.git || echo "recipe-manager repo already exists"
 git clone https://github.com/cfioretti/ingredients-balancer || echo "ingredients-balancer repo already exists"
-cd pizzamaker-local
+cd ..
 
 docker-compose up -d --build
