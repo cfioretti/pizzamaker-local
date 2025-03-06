@@ -4,17 +4,17 @@ services:
       context: ${REPOS_DIR:-./repos}/pizzamaker-fe
       dockerfile: deployments/Dockerfile
     ports:
-      - "3000:80"
+      - "${PIZZAMAKER_FE_PORT:-3000}:80"
     depends_on:
       - recipe-manager
     restart: on-failure
 
   recipe-manager:
     build:
-      context: ${REPOS_DIR:-./repos}/pizzamaker-fe
+      context: ${REPOS_DIR:-./repos}/recipe-manager
       dockerfile: deployments/Dockerfile
     ports:
-      - "8080:8080"
+      - "${RECIPE_MANAGER_PORT:-8080}:8080"
     environment:
       INGREDIENTS_BALANCER_ADDR: ingredients-balancer:50051
       CONFIG_PATH: /app/configs
@@ -33,7 +33,7 @@ services:
       context: ${REPOS_DIR:-./repos}/ingredients-balancer
       dockerfile: deployments/Dockerfile
     ports:
-      - "50051:50051"
+      - "${INGREDIENTS_BALANCER_PORT:-50051}:50051"
     restart: on-failure
 
   mysql:
@@ -46,7 +46,7 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: pizzamaker
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "user", "--password=pizzamaker"]
       interval: 5s
