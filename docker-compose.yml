@@ -33,7 +33,15 @@ services:
       context: ${REPOS_DIR:-./repos}/ingredients-balancer
       dockerfile: deployments/Dockerfile
     ports:
-      - "${INGREDIENTS_BALANCER_PORT:-50051}:50051"
+      - "${INGREDIENTS_BALANCER_PORT:-50052}:50051"
+    restart: on-failure
+
+  calculator:
+    build:
+      context: ${REPOS_DIR:-./repos}/calculator
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "${CALCULATOR_PORT:-50051}:50051"
     restart: on-failure
 
   mysql:

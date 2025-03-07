@@ -12,6 +12,7 @@ check_pull_output() {
 cd pizzamaker-fe && check_pull_output && cd ..
 cd recipe-manager && check_pull_output && cd ..
 cd ingredients-balancer && check_pull_output && cd ..
+cd calculator && check_pull_output && cd ..
 
 docker-compose up -d --build
 if [ $changes_detected -eq 1 ]; then
