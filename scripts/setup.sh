@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-mkdir "repos" || echo "repos directory already exists"
+mkdir "$(git rev-parse --show-toplevel)/repos" || echo "repos directory already exists"
 cd repos
 
 git clone https://github.com/cfioretti/pizzamaker-fe || echo "pizzamaker-fe repo already exists"

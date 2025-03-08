@@ -2,7 +2,7 @@
 set -e
 changes_detected=0
 
-cd repos
+cd "$(git rev-parse --show-toplevel)/repos" || echo "repos directory does not exists" && exit 1
 check_pull_output() {
     if ! git pull | grep -q "Already up to date"; then
         changes_detected=1
