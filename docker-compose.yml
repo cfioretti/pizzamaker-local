@@ -3,16 +3,28 @@ services:
     build:
       context: ${REPOS_DIR:-./repos}/pizzamaker-fe
       dockerfile: deployments/Dockerfile
+      cache_from:
+        - frontend:latest
+    image: frontend:latest
     ports:
       - "${PIZZAMAKER_FE_PORT:-3000}:80"
     depends_on:
       - recipe-manager
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   recipe-manager:
     build:
       context: ${REPOS_DIR:-./repos}/recipe-manager
       dockerfile: deployments/Dockerfile
+      cache_from:
+        - recipe-manager:latest
+    image: recipe-manager:latest
     ports:
       - "${RECIPE_MANAGER_PORT:-8080}:8080"
     environment:
@@ -27,22 +39,46 @@ services:
       mysql:
         condition: service_healthy
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   ingredients-balancer:
     build:
       context: ${REPOS_DIR:-./repos}/ingredients-balancer
       dockerfile: deployments/Dockerfile
+      cache_from:
+        - ingredients-balancer:latest
+    image: ingredients-balancer:latest
     ports:
       - "${INGREDIENTS_BALANCER_PORT:-50052}:50051"
     restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   calculator:
     build:
       context: ${REPOS_DIR:-./repos}/calculator
       dockerfile: deployments/Dockerfile
+      cache_from:
+        - calculator:latest
+    image: calculator:latest
     ports:
       - "${CALCULATOR_PORT:-50051}:50051"
     restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   mysql:
     image: mysql:8.0
