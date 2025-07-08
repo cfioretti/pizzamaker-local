@@ -36,6 +36,7 @@ services:
       DATABASE_DBNAME: pizzamaker
       DATABASE_USER: user
       DATABASE_PASSWORD: pizzamaker
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       mysql:
         condition: service_healthy
@@ -56,6 +57,8 @@ services:
     image: ingredients-balancer:latest
     ports:
       - "${INGREDIENTS_BALANCER_PORT:-50052}:50052"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50052 || exit 1"]
@@ -73,6 +76,8 @@ services:
     image: calculator:latest
     ports:
       - "${CALCULATOR_PORT:-50051}:50051"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
