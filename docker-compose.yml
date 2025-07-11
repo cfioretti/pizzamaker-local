@@ -37,9 +37,13 @@ services:
       DATABASE_USER: user
       DATABASE_PASSWORD: pizzamaker
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_SERVICE_NAME: recipe-manager
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     depends_on:
       mysql:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     restart: on-failure
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
@@ -59,6 +63,11 @@ services:
       - "${INGREDIENTS_BALANCER_PORT:-50052}:50052"
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_SERVICE_NAME: ingredients-balancer
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+    depends_on:
+      jaeger:
+        condition: service_started
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50052 || exit 1"]
@@ -78,6 +87,11 @@ services:
       - "${CALCULATOR_PORT:-50051}:50051"
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_SERVICE_NAME: calculator
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+    depends_on:
+      jaeger:
+        condition: service_started
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
@@ -107,6 +121,26 @@ services:
       - mysql_data:/var/lib/mysql
       - ${REPOS_DIR:-./repos}/recipe-manager/migrations:/docker-entrypoint-initdb.d
     command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: jaeger
+    restart: on-failure
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+      COLLECTOR_OTLP_HTTP_PORT: 4318
+      COLLECTOR_OTLP_GRPC_PORT: 4317
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_COLLECTOR_PORT:-14268}:14268"
+      - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mysql_data:
