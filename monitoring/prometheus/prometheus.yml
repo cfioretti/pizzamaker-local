@@ -31,27 +31,28 @@ scrape_configs:
     metrics_path: /metrics
     scrape_timeout: 10s
 
-  - job_name: 'calculator'
-    static_configs:
-      - targets: ['calculator:8080']
-        labels:
-          service: 'calculator'
-          domain: 'calculation'
-          layer: 'application'
-    scrape_interval: 10s
-    metrics_path: /metrics
-    scrape_timeout: 10s
+  # TODO: to fix Calculator and Ingredients-Balancer HTTP servers (not starting)
+  # - job_name: 'calculator'
+  #   static_configs:
+  #     - targets: ['calculator:8080']
+  #       labels:
+  #         service: 'calculator'
+  #         domain: 'calculation'
+  #         layer: 'application'
+  #   scrape_interval: 10s
+  #   metrics_path: /metrics
+  #   scrape_timeout: 10s
 
-  - job_name: 'ingredients-balancer'
-    static_configs:
-      - targets: ['ingredients-balancer:8081']
-        labels:
-          service: 'ingredients-balancer'
-          domain: 'balancing'
-          layer: 'application'
-    scrape_interval: 10s
-    metrics_path: /metrics
-    scrape_timeout: 10s
+  # - job_name: 'ingredients-balancer'
+  #   static_configs:
+  #     - targets: ['ingredients-balancer:8081']
+  #       labels:
+  #         service: 'ingredients-balancer'
+  #         domain: 'balancing'
+  #         layer: 'application'
+  #   scrape_interval: 10s
+  #   metrics_path: /metrics
+  #   scrape_timeout: 10s
 
   - job_name: 'jaeger'
     static_configs:
