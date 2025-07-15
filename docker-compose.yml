@@ -61,6 +61,7 @@ services:
     image: ingredients-balancer:latest
     ports:
       - "${INGREDIENTS_BALANCER_PORT:-50052}:50052"
+      - "${INGREDIENTS_BALANCER_HTTP_PORT:-8081}:8081"
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: ingredients-balancer
@@ -85,6 +86,7 @@ services:
     image: calculator:latest
     ports:
       - "${CALCULATOR_PORT:-50051}:50051"
+      - "${CALCULATOR_HTTP_PORT:-9090}:8080"
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: calculator
@@ -142,5 +144,64 @@ services:
       retries: 3
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: prometheus
+    restart: on-failure
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    depends_on:
+      recipe-manager:
+        condition: service_healthy
+      calculator:
+        condition: service_started
+      ingredients-balancer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    restart: on-failure
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SERVER_DOMAIN: localhost
+      GF_LOG_LEVEL: info
+      GF_LOG_MODE: console
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 volumes:
   mysql_data:
+  prometheus_data:
+  grafana_data:

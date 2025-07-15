@@ -1,4 +1,4 @@
-.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator help
+.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop help
 
 help:
 	@echo "Available targets:"
@@ -15,6 +15,8 @@ help:
 	@echo "  rebuild-recipe-manager - Rebuild only recipe-manager container"
 	@echo "  rebuild-ingredients-balancer - Rebuild only ingredients-balancer container"
 	@echo "  rebuild-calculator   - Rebuild only calculator container"
+	@echo "  monitoring-start     - Start monitoring stack (Prometheus + Grafana)"
+	@echo "  monitoring-stop      - Stop monitoring stack only"
 
 setup:
 	./scripts/setup.sh
@@ -62,3 +64,9 @@ rebuild-ingredients-balancer:
 rebuild-calculator:
 	docker-compose build --no-cache calculator
 	docker-compose up -d calculator
+
+monitoring-start:
+	docker-compose up -d prometheus grafana
+
+monitoring-stop:
+	docker-compose stop prometheus grafana

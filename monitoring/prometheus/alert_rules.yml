@@ -1,0 +1,115 @@
+groups:
+  # Business Domain Alerts
+  - name: recipe_manager_alerts
+    rules:
+      - alert: RecipeManagerHighErrorRate
+        expr: rate(recipe_manager_http_requests_total{status_code!~"2.."}[5m]) / rate(recipe_manager_http_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: recipe-manager
+          domain: recipe
+        annotations:
+          summary: "Recipe Manager high error rate"
+          description: "Recipe Manager has error rate above 10% for 2 minutes"
+
+      - alert: RecipeManagerResponseTime
+        expr: histogram_quantile(0.95, rate(recipe_manager_http_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: recipe-manager
+          domain: recipe
+        annotations:
+          summary: "Recipe Manager slow response time"
+          description: "95th percentile response time is above 2 seconds"
+
+      - alert: RecipeManagerDatabaseOperationErrors
+        expr: rate(recipe_manager_database_operations_total{success="false"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          service: recipe-manager
+          domain: recipe
+        annotations:
+          summary: "Recipe Manager database operation errors"
+          description: "High rate of database operation failures"
+
+  - name: calculator_alerts
+    rules:
+      - alert: CalculatorHighErrorRate
+        expr: rate(calculator_calculations_total{type="error"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: calculator
+          domain: calculation
+        annotations:
+          summary: "Calculator high error rate"
+          description: "Calculator has error rate above 5% for 2 minutes"
+
+      - alert: CalculatorDurationTooHigh
+        expr: histogram_quantile(0.90, rate(calculator_calculation_duration_seconds_bucket[5m])) > 1
+        for: 3m
+        labels:
+          severity: warning
+          service: calculator
+          domain: calculation
+        annotations:
+          summary: "Calculator slow calculations"
+          description: "90th percentile calculation time is above 1 second"
+
+  - name: ingredients_balancer_alerts
+    rules:
+      - alert: IngredientsBalancerAccuracyLow
+        expr: histogram_quantile(0.50, rate(ingredients_balancer_balance_accuracy_percentage_bucket[10m])) < 85
+        for: 5m
+        labels:
+          severity: warning
+          service: ingredients-balancer
+          domain: balancing
+        annotations:
+          summary: "Ingredients Balancer low accuracy"
+          description: "Median balance accuracy is below 85%"
+
+      - alert: IngredientsBalancerHighWaste
+        expr: histogram_quantile(0.95, rate(ingredients_balancer_waste_percentage_bucket[5m])) > 15
+        for: 3m
+        labels:
+          severity: warning
+          service: ingredients-balancer
+          domain: balancing
+        annotations:
+          summary: "Ingredients Balancer high waste"
+          description: "95th percentile waste is above 15%"
+
+  # Infrastructure Alerts
+  - name: infrastructure_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"recipe-manager|calculator|ingredients-balancer"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.container_label_com_docker_compose_service }}"
+          description: "Memory usage is above 80% for 5 minutes"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: critical
+          service: mysql
+        annotations:
+          summary: "MySQL connection pool nearly exhausted"
+          description: "MySQL connection pool usage is above 80%" 

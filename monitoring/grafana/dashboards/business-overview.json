@@ -1,0 +1,179 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PizzaMaker - Business Overview",
+    "tags": ["pizzamaker", "business", "ddd"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Recipe Operations Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_recipe_retrievals_total[5m])",
+            "legendFormat": "Retrievals/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(recipe_manager_recipe_aggregations_total[5m])",
+            "legendFormat": "Aggregations/sec",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "ops"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Calculation Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(calculator_calculations_total{type!=\"error\"}[5m]) / rate(calculator_calculations_total[5m]) * 100",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 90},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent",
+            "max": 100,
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Balancer Accuracy Distribution",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "rate(ingredients_balancer_balance_accuracy_percentage_bucket[5m])",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Response Time Trends",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(recipe_manager_http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Recipe Manager p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(recipe_manager_http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Recipe Manager p95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(calculator_calculation_duration_seconds_bucket[5m]))",
+            "legendFormat": "Calculator p50",
+            "refId": "C"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(calculator_calculation_duration_seconds_bucket[5m]))",
+            "legendFormat": "Calculator p95",
+            "refId": "D"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Cross-Service Call Success",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_calculator_service_calls_total{success=\"true\"}[5m])",
+            "legendFormat": "Recipe→Calculator Success",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(recipe_manager_balancer_service_calls_total{success=\"true\"}[5m])",
+            "legendFormat": "Recipe→Balancer Success",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(recipe_manager_calculator_service_calls_total{success=\"false\"}[5m])",
+            "legendFormat": "Recipe→Calculator Failed",
+            "refId": "C"
+          },
+          {
+            "expr": "rate(recipe_manager_balancer_service_calls_total{success=\"false\"}[5m])",
+            "legendFormat": "Recipe→Balancer Failed",
+            "refId": "D"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "ops"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Domain-Specific Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.90, rate(calculator_dough_weight_grams_bucket[5m]))",
+            "legendFormat": "Dough Weight (p90)",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(calculator_dough_hydration_percentage_bucket[5m]))",
+            "legendFormat": "Hydration % (p50)",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.90, rate(ingredients_balancer_waste_percentage_bucket[5m]))",
+            "legendFormat": "Waste % (p90)",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "schemaVersion": 30,
+    "version": 1
+  }
+} 

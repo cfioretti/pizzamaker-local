@@ -1,0 +1,73 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'local'
+    cluster: 'pizzamaker'
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  - job_name: 'recipe-manager'
+    static_configs:
+      - targets: ['recipe-manager:8080']
+        labels:
+          service: 'recipe-manager'
+          domain: 'recipe'
+          layer: 'application'
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  - job_name: 'calculator'
+    static_configs:
+      - targets: ['calculator:8080']
+        labels:
+          service: 'calculator'
+          domain: 'calculation'
+          layer: 'application'
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  - job_name: 'ingredients-balancer'
+    static_configs:
+      - targets: ['ingredients-balancer:8081']
+        labels:
+          service: 'ingredients-balancer'
+          domain: 'balancing'
+          layer: 'application'
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+        labels:
+          service: 'jaeger'
+          layer: 'infrastructure'
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+        labels:
+          service: 'mysql'
+          layer: 'infrastructure'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s 

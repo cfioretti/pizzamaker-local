@@ -15,7 +15,14 @@ The Pizzamaker application is composed of the following services:
 
 ## Architecture & Observability
 
-This project implements a comprehensive observability stack:
+This project implements a comprehensive observability stack following the **Three Pillars of Observability**:
+
+### Metrics (Prometheus + Grafana)
+- **Prometheus**: Time-series database for metrics collection from all DDD microservices
+- **Grafana**: Dashboard and visualization platform with pre-configured dashboards
+- **Business Metrics**: Domain-specific metrics (recipe operations, calculation accuracy, balancer efficiency)
+- **Technical Metrics**: Response times, error rates, throughput, resource utilization
+- **Infrastructure Metrics**: Service health, active connections, database operations
 
 ### Structured Logging
 - **Logrus**: JSON-structured logging across all Go services
@@ -85,17 +92,33 @@ Available targets:
   rebuild-recipe-manager    - Rebuild only recipe-manager container
   rebuild-ingredients-balancer - Rebuild only ingredients-balancer container
   rebuild-calculator        - Rebuild only calculator container
+  monitoring-start          - Start monitoring stack (Prometheus + Grafana)
+  monitoring-stop           - Stop monitoring stack only
 ```
 
 ## Service URLs
 
 When the environment is running, you can access the services at:
 
+### Core Services
 - **Frontend**: http://localhost:3000
 - **Recipe Manager API**: http://localhost:8080
 - **Ingredients Balancer gRPC**: localhost:50052
 - **Calculator gRPC**: localhost:50051
-- **Jaeger UI**: http://localhost:16686
+
+### Observability Stack
+- **Jaeger UI**: http://localhost:16686 (Distributed Tracing)
+- **Prometheus**: http://localhost:9090 (Metrics Collection)
+- **Grafana**: http://localhost:3001 (Dashboards - admin/admin)
+
+### Metrics Endpoints
+- **Recipe Manager**: http://localhost:8080/metrics
+- **Calculator**: http://localhost:9090/metrics
+- **Ingredients Balancer**: http://localhost:8081/metrics
+
+### Pre-configured Grafana Dashboards
+- **Business Overview**: Real-time business metrics and KPIs
+- **Infrastructure Health**: System health, error rates, response times
 
 ## Troubleshooting
 
@@ -107,20 +130,3 @@ If you encounter issues:
 4. Verify OpenTelemetry configuration in service logs
 5. Try rebuilding a specific service with `make rebuild-<service-name>`
 6. For a clean start, run `make clean` followed by `make setup`
-
-### Common Issues
-
-#### Tracing Not Working
-- Check that Jaeger is running: `docker ps | grep jaeger`
-- Verify OTLP endpoint configuration in service logs
-- Ensure OpenTelemetry middleware is properly configured
-
-#### Missing Correlation IDs
-- Check that correlation ID middleware is active
-- Verify HTTP headers are being set correctly
-- Check gRPC metadata propagation for gRPC services
-
-#### Performance Issues
-- Monitor trace sampling rates in Jaeger
-- Check OpenTelemetry batch processing configuration
-- Verify resource limits in docker-compose.yml

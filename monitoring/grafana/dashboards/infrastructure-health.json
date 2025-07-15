@@ -1,0 +1,242 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PizzaMaker - Infrastructure Health",
+    "tags": ["pizzamaker", "infrastructure", "health"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Uptime",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"recipe-manager\"}",
+            "legendFormat": "Recipe Manager",
+            "refId": "A"
+          },
+          {
+            "expr": "up{job=\"calculator\"}",
+            "legendFormat": "Calculator",
+            "refId": "B"
+          },
+          {
+            "expr": "up{job=\"ingredients-balancer\"}",
+            "legendFormat": "Ingredients Balancer",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "DOWN"}}, "type": "value"},
+              {"options": {"1": {"text": "UP"}}, "type": "value"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "HTTP Request Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_http_requests_total[5m])",
+            "legendFormat": "Recipe Manager",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(calculator_grpc_requests_total[5m])",
+            "legendFormat": "Calculator (gRPC)",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(ingredients_balancer_grpc_requests_total[5m])",
+            "legendFormat": "Ingredients Balancer (gRPC)",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_http_requests_total{status_code!~\"2..\"}[5m]) / rate(recipe_manager_http_requests_total[5m]) * 100",
+            "legendFormat": "Recipe Manager Error %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(calculator_calculation_errors_total[5m]) / rate(calculator_calculations_total[5m]) * 100",
+            "legendFormat": "Calculator Error %",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(ingredients_balancer_balance_errors_total[5m]) / rate(ingredients_balancer_balance_operations_total[5m]) * 100",
+            "legendFormat": "Balancer Error %",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "max": 100,
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Database Operations",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_database_operations_total{success=\"true\"}[5m])",
+            "legendFormat": "Successful DB Ops",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(recipe_manager_database_operations_total{success=\"false\"}[5m])",
+            "legendFormat": "Failed DB Ops",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(recipe_manager_database_operation_duration_seconds_bucket[5m]))",
+            "legendFormat": "DB Query p95 Duration",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Active Connections",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "recipe_manager_active_http_connections",
+            "legendFormat": "Recipe Manager HTTP",
+            "refId": "A"
+          },
+          {
+            "expr": "calculator_active_calculations",
+            "legendFormat": "Calculator Active Calculations",
+            "refId": "B"
+          },
+          {
+            "expr": "ingredients_balancer_active_balance_operations",
+            "legendFormat": "Balancer Active Operations",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Response Time Distribution",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "rate(recipe_manager_http_request_duration_seconds_bucket[5m])",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "options": {
+          "calculate": true,
+          "calculation": {
+            "xBuckets": {
+              "mode": "count",
+              "value": "50"
+            }
+          },
+          "cellGap": 2,
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "mode": "spectrum",
+            "reverse": false,
+            "scale": "exponential",
+            "scheme": "Spectral"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Prometheus Targets Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up",
+            "refId": "A",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "__name__": true,
+                "Time": true
+              },
+              "indexByName": {},
+              "renameByName": {
+                "job": "Service",
+                "instance": "Instance",
+                "Value": "Status"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+              {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+            ]
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "schemaVersion": 30,
+    "version": 1
+  }
+} 
