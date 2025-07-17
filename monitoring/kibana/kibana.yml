@@ -1,0 +1,13 @@
+server.name: "kibana-logs"
+server.host: "0.0.0.0"
+server.port: 5601
+
+elasticsearch.hosts: ["http://elasticsearch-logs:9200"]
+
+# Security settings disabled for local development
+xpack.security.enabled: false
+xpack.encryptedSavedObjects.encryptionKey: "pizzamaker-local-development-key-32-chars"
+
+server.maxPayload: 1048576
+
+map.includeElasticMapsService: false

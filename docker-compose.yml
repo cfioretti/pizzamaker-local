@@ -44,7 +44,15 @@ services:
         condition: service_healthy
       jaeger:
         condition: service_started
+      fluentd:
+        condition: service_started
     restart: on-failure
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        fluentd-async: "true"
+        tag: recipe-manager
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
       interval: 10s
@@ -201,7 +209,79 @@ services:
       retries: 3
       start_period: 15s
 
+  elasticsearch-logs:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.15
+    container_name: elasticsearch-logs
+    restart: on-failure
+    environment:
+      - node.name=elasticsearch-logs
+      - cluster.name=pizzamaker-logs
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - ./monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  fluentd:
+    build:
+      context: ./monitoring/fluentd
+      dockerfile: Dockerfile
+    container_name: fluentd
+    restart: on-failure
+    ports:
+      - "${FLUENTD_PORT:-24224}:24224"
+      - "${FLUENTD_PORT:-24224}:24224/udp"
+    volumes:
+      - ./monitoring/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - fluentd_data:/var/log/fluentd-buffers
+    depends_on:
+      elasticsearch-logs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "24224"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  kibana-logs:
+    image: docker.elastic.co/kibana/kibana:7.17.15
+    container_name: kibana-logs
+    restart: on-failure
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch-logs:9200
+      ELASTICSEARCH_USERNAME: ""
+      ELASTICSEARCH_PASSWORD: ""
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    volumes:
+      - ./monitoring/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - kibana_data:/usr/share/kibana/data
+    depends_on:
+      elasticsearch-logs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
 volumes:
   mysql_data:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:
+  fluentd_data:
+  kibana_data:

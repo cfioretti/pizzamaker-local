@@ -17,23 +17,24 @@ The Pizzamaker application is composed of the following services:
 
 This project implements a comprehensive observability stack following the **Three Pillars of Observability**:
 
-### Metrics (Prometheus + Grafana)
-- **Prometheus**: Time-series database for metrics collection from all DDD microservices
-- **Grafana**: Dashboard and visualization platform with pre-configured dashboards
-- **Business Metrics**: Domain-specific metrics (recipe operations, calculation accuracy, balancer efficiency)
-- **Technical Metrics**: Response times, error rates, throughput, resource utilization
-- **Infrastructure Metrics**: Service health, active connections, database operations
-
 ### Structured Logging
 - **Logrus**: JSON-structured logging across all Go services
 - **Correlation ID**: Automatic request tracking across service boundaries
 - **Context propagation**: Trace and span IDs automatically included in logs
+- **EFK Integration**: Logs automatically collected and parsed by Fluentd for Kibana analysis
 
 ### Distributed Tracing
 - **OpenTelemetry**: Industry-standard tracing instrumentation
 - **Jaeger**: Distributed tracing backend with web UI
 - **Cross-service tracing**: Automatic trace propagation between HTTP and gRPC services
 - **Context correlation**: Traces linked with structured logs via correlation IDs
+
+### Metrics (Prometheus + Grafana)
+- **Prometheus**: Time-series database for metrics collection from all DDD microservices
+- **Grafana**: Dashboard and visualization platform with pre-configured dashboards
+- **Business Metrics**: Domain-specific metrics (recipe operations, calculation accuracy, balancer efficiency)
+- **Technical Metrics**: Response times, error rates, throughput, resource utilization
+- **Infrastructure Metrics**: Service health, active connections, database operations
 
 ### Service Communication
 - **HTTP**: Frontend ↔ Recipe Manager (with OpenTelemetry Gin middleware)
@@ -110,15 +111,56 @@ When the environment is running, you can access the services at:
 - **Jaeger UI**: http://localhost:16686 (Distributed Tracing)
 - **Prometheus**: http://localhost:9090 (Metrics Collection)
 - **Grafana**: http://localhost:3001 (Dashboards - admin/admin)
+- **Kibana**: http://localhost:5601 (Log Analysis & Monitoring)
+- **Elasticsearch**: http://localhost:9200 (Search Engine API)
 
 ### Metrics Endpoints
 - **Recipe Manager**: http://localhost:8080/metrics
 - **Calculator**: http://localhost:9090/metrics
 - **Ingredients Balancer**: http://localhost:8081/metrics
 
-### Pre-configured Grafana Dashboards
+### Pre-configured Dashboards
+
+#### Grafana Dashboards
 - **Business Overview**: Real-time business metrics and KPIs
 - **Infrastructure Health**: System health, error rates, response times
+
+#### Kibana Dashboards
+- **Service Health Overview**: Real-time service status and log volume
+- **Log Levels Distribution**: Error detection and logging patterns
+- **Correlation ID Tracking**: Distributed request tracing across services
+- **Error Detection & Alerting**: Performance anomaly detection and exception tracking
+
+## EFK Stack Management
+
+### Starting EFK Services
+```bash
+# Start complete EFK stack
+docker-compose up -d elasticsearch-logs fluentd kibana-logs
+
+# Check EFK services status
+docker ps | grep -E "(elasticsearch|fluentd|kibana)"
+```
+
+### Log Analysis
+```bash
+# Check Elasticsearch indices
+curl localhost:9200/_cat/indices
+
+# Generate test logs
+curl localhost:8080/health
+
+# View Fluentd logs
+docker logs fluentd
+```
+
+### Kibana Configuration
+1. Access Kibana at http://localhost:5601
+2. Index patterns are automatically created:
+   - `pizzamaker-logs-*`: Enhanced logs with correlation IDs
+   - `fluentd-*`: Raw container logs
+3. Pre-configured visualizations available for import
+4. Real-time log monitoring and correlation ID tracking
 
 ## Troubleshooting
 
