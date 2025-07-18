@@ -1,4 +1,4 @@
-.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop help
+.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop help
 
 help:
 	@echo "Available targets:"
@@ -17,6 +17,10 @@ help:
 	@echo "  rebuild-calculator   - Rebuild only calculator container"
 	@echo "  monitoring-start     - Start monitoring stack (Prometheus + Grafana)"
 	@echo "  monitoring-stop      - Stop monitoring stack only"
+	@echo "  logging-start        - Start logging stack (Elasticsearch + Fluentd + Kibana)"
+	@echo "  logging-stop         - Stop logging stack only"
+	@echo "  observability-start  - Start both monitoring and logging stacks together"
+	@echo "  observability-stop   - Stop both monitoring and logging stacks together"
 
 setup:
 	./scripts/setup.sh
@@ -65,8 +69,8 @@ rebuild-calculator:
 	docker-compose build --no-cache calculator
 	docker-compose up -d calculator
 
-monitoring-start:
-	docker-compose up -d prometheus grafana
+observability-start:
+	docker-compose up -d prometheus grafana elasticsearch-logs fluentd kibana-logs
 
-monitoring-stop:
-	docker-compose stop prometheus grafana
+observability-stop:
+	docker-compose stop prometheus grafana elasticsearch-logs fluentd kibana-logs

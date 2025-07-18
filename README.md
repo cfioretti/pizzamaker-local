@@ -57,11 +57,6 @@ To set up the local environment for the first time:
 make setup
 ```
 
-This command will:
-1. Clone all required repositories in parallel
-2. Build Docker images with caching
-3. Start all containers (including Jaeger)
-
 ### Daily Development
 
 To sync your repositories with the latest changes:
@@ -69,10 +64,6 @@ To sync your repositories with the latest changes:
 ```bash
 make sync
 ```
-
-This command will:
-1. Pull the latest changes from all repositories in parallel
-2. Rebuild containers only if changes were detected
 
 ### Available Commands
 
@@ -93,8 +84,8 @@ Available targets:
   rebuild-recipe-manager    - Rebuild only recipe-manager container
   rebuild-ingredients-balancer - Rebuild only ingredients-balancer container
   rebuild-calculator        - Rebuild only calculator container
-  monitoring-start          - Start monitoring stack (Prometheus + Grafana)
-  monitoring-stop           - Stop monitoring stack only
+  observability-start       - Start both monitoring and logging stacks together
+  observability-stop        - Stop both monitoring and logging stacks together
 ```
 
 ## Service URLs
@@ -114,6 +105,13 @@ When the environment is running, you can access the services at:
 - **Kibana**: http://localhost:5601 (Log Analysis & Monitoring)
 - **Elasticsearch**: http://localhost:9200 (Search Engine API)
 
+To start or stop monitoring (Prometheus + Grafana) and logging (EFK) stacks:
+
+```bash
+make observability-start
+make observability-stop
+```
+
 ### Metrics Endpoints
 - **Recipe Manager**: http://localhost:8080/metrics
 - **Calculator**: http://localhost:9090/metrics
@@ -131,36 +129,15 @@ When the environment is running, you can access the services at:
 - **Correlation ID Tracking**: Distributed request tracing across services
 - **Error Detection & Alerting**: Performance anomaly detection and exception tracking
 
-## EFK Stack Management
+# EFK Configuration
 
-### Starting EFK Services
-```bash
-# Start complete EFK stack
-docker-compose up -d elasticsearch-logs fluentd kibana-logs
-
-# Check EFK services status
-docker ps | grep -E "(elasticsearch|fluentd|kibana)"
-```
-
-### Log Analysis
-```bash
-# Check Elasticsearch indices
-curl localhost:9200/_cat/indices
-
-# Generate test logs
-curl localhost:8080/health
-
-# View Fluentd logs
-docker logs fluentd
-```
-
-### Kibana Configuration
 1. Access Kibana at http://localhost:5601
 2. Index patterns are automatically created:
    - `pizzamaker-logs-*`: Enhanced logs with correlation IDs
    - `fluentd-*`: Raw container logs
 3. Pre-configured visualizations available for import
 4. Real-time log monitoring and correlation ID tracking
+5. For detailed instructions on setting up Kibana dashboards, see [Kibana Dashboard Setup Guide](monitoring/kibana/KIBANA_DASHBOARD_GUIDE.md)
 
 ## Troubleshooting
 
