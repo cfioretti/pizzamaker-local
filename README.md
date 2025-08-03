@@ -6,11 +6,16 @@ This project provides a local development environment for the Pizzamaker applica
 
 The Pizzamaker application is composed of the following services:
 
+## Core Application Services
 - **Frontend (pizzamaker-fe)**: React-based web interface
 - **Recipe Manager (recipe-manager)**: Manages pizza recipes (HTTP/REST API)
 - **Ingredients Balancer (ingredients-balancer)**: Calculates ingredient proportions (gRPC)
 - **Calculator (calculator)**: Performs dough calculations (gRPC)
-- **MySQL**: Database for storing recipes
+
+## Infrastructure Services
+- **Kong API Gateway**: Enterprise-grade API gateway with rate limiting, CORS, circuit breaker
+- **PostgreSQL (Kong DB)**: Kong configuration database
+- **MySQL**: Application database for storing recipes
 - **Jaeger**: Distributed tracing system for observability
 
 ## Architecture & Observability
@@ -40,6 +45,32 @@ This project implements a comprehensive observability stack following the **Thre
 - **HTTP**: Frontend ↔ Recipe Manager (with OpenTelemetry Gin middleware)
 - **gRPC**: Recipe Manager ↔ Calculator/Ingredients Balancer (with OpenTelemetry gRPC interceptors)
 - **Automatic instrumentation**: All inter-service calls are automatically traced
+
+## Project Structure
+
+This project follows an infrastructure-centric organization for better scalability and maintainability:
+
+```
+pizzamaker-local/
+├── infrastructure/           # Infrastructure configuration files
+│   ├── gateway/             # API Gateway configurations
+│   │   └── kong/           # Kong Gateway config and plugins
+│   └── monitoring/         # Observability stack
+│       ├── prometheus/     # Metrics collection
+│       ├── grafana/        # Dashboards and visualization
+│       ├── elasticsearch/  # Log storage
+│       ├── fluentd/        # Log processing
+│       └── kibana/         # Log analysis and visualization
+├── scripts/                # Automation scripts
+│   ├── infrastructure/     # Infrastructure management scripts
+│   ├── setup.sh           # Initial environment setup
+│   └── sync.sh             # Repository synchronization
+└── repos/                  # Application microservices (Git submodules)
+    ├── pizzamaker-fe/      # Frontend application
+    ├── recipe-manager/     # Recipe management service
+    ├── calculator/         # Calculation service
+    └── ingredients-balancer/ # Balancing service
+```
 
 ## Prerequisites
 
@@ -94,9 +125,15 @@ When the environment is running, you can access the services at:
 
 ### Core Services
 - **Frontend**: http://localhost:3000
-- **Recipe Manager API**: http://localhost:8080
-- **Ingredients Balancer gRPC**: localhost:50052
-- **Calculator gRPC**: localhost:50051
+- **Recipe Manager API**: http://localhost:8000/api/v1/recipes (via Kong)
+- **Health Check**: http://localhost:8000/health (via Kong)
+- **Ingredients Balancer gRPC**: localhost:50052 (internal)
+- **Calculator gRPC**: localhost:50051 (internal)
+
+### Kong API Gateway
+- **Kong Proxy**: http://localhost:8000 (Main API entry point)
+- **Kong Admin API**: http://localhost:8001 (Configuration)
+- **Kong Admin GUI**: http://localhost:8002 (Web interface)
 
 ### Observability Stack
 - **Jaeger UI**: http://localhost:16686 (Distributed Tracing)
@@ -112,10 +149,21 @@ make observability-start
 make observability-stop
 ```
 
+## Kong API Gateway Management
+
+After starting the environment, configure Kong Gateway:
+
+```bash
+make kong-setup
+make kong-test
+make kong-show
+```
+
 ### Metrics Endpoints
-- **Recipe Manager**: http://localhost:8080/metrics
-- **Calculator**: http://localhost:9090/metrics
-- **Ingredients Balancer**: http://localhost:8081/metrics
+- **Kong Gateway**: http://localhost:8001/metrics (Admin API)
+- **Recipe Manager**: http://localhost:8000/metrics/recipe-manager (via Kong)
+- **Calculator**: http://localhost:8000/metrics/calculator (via Kong, protected)
+- **Ingredients Balancer**: http://localhost:8000/metrics/balancer (via Kong, protected)
 
 ### Pre-configured Dashboards
 
@@ -137,7 +185,7 @@ make observability-stop
    - `fluentd-*`: Raw container logs
 3. Pre-configured visualizations available for import
 4. Real-time log monitoring and correlation ID tracking
-5. For detailed instructions on setting up Kibana dashboards, see [Kibana Dashboard Setup Guide](monitoring/kibana/KIBANA_DASHBOARD_GUIDE.md)
+5. For detailed instructions on setting up Kibana dashboards, see [Kibana Dashboard Setup Guide](infrastructure/monitoring/kibana/KIBANA_DASHBOARD_GUIDE.md)
 
 ## Troubleshooting
 

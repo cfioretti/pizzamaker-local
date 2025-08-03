@@ -1,4 +1,8 @@
 services:
+  # =============================================================================
+  # APPLICATION SERVICES
+  # =============================================================================
+
   frontend:
     build:
       context: ${REPOS_DIR:-./repos}/pizzamaker-fe
@@ -8,8 +12,10 @@ services:
     image: frontend:latest
     ports:
       - "${PIZZAMAKER_FE_PORT:-3000}:80"
+    environment:
+      REACT_APP_API_BASE_URL: ${KONG_API_BASE_URL:-http://localhost:8000/api/v1}
     depends_on:
-      - recipe-manager
+      - kong-gateway
     restart: on-failure
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
@@ -25,8 +31,9 @@ services:
       cache_from:
         - recipe-manager:latest
     image: recipe-manager:latest
-    ports:
-      - "${RECIPE_MANAGER_PORT:-8080}:8080"
+    # Port removed - only accessible through Kong Gateway
+    expose:
+      - "8080"  # Internal port for Kong upstream
     environment:
       CALCULATOR_ADDR: calculator:50051
       INGREDIENTS_BALANCER_ADDR: ingredients-balancer:50052
@@ -39,6 +46,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: recipe-manager
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      # Kong integration
+      KONG_ADMIN_URL: http://kong-gateway:8001
+      ENABLE_KONG_TRACING: "true"
     depends_on:
       mysql:
         condition: service_healthy
@@ -67,13 +77,14 @@ services:
       cache_from:
         - ingredients-balancer:latest
     image: ingredients-balancer:latest
-    ports:
-      - "${INGREDIENTS_BALANCER_PORT:-50052}:50052"
-      - "${INGREDIENTS_BALANCER_HTTP_PORT:-8081}:8081"
+    expose:
+      - "50052"  # gRPC internal
+      - "8081"   # HTTP metrics for Prometheus
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: ingredients-balancer
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      KONG_ADMIN_URL: http://kong-gateway:8001
     depends_on:
       jaeger:
         condition: service_started
@@ -92,13 +103,14 @@ services:
       cache_from:
         - calculator:latest
     image: calculator:latest
-    ports:
-      - "${CALCULATOR_PORT:-50051}:50051"
-      - "${CALCULATOR_HTTP_PORT:-8082}:8080"
+    expose:
+      - "50051"  # gRPC internal
+      - "8080"   # HTTP metrics for Prometheus
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: calculator
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      KONG_ADMIN_URL: http://kong-gateway:8001
     depends_on:
       jaeger:
         condition: service_started
@@ -167,7 +179,7 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./monitoring/prometheus:/etc/prometheus
+      - ./infrastructure/monitoring/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     depends_on:
       recipe-manager:
@@ -196,8 +208,8 @@ services:
     ports:
       - "${GRAFANA_PORT:-3001}:3000"
     volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
       - grafana_data:/var/lib/grafana
     depends_on:
       prometheus:
@@ -222,7 +234,7 @@ services:
     ports:
       - "${ELASTICSEARCH_PORT:-9200}:9200"
     volumes:
-      - ./monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./infrastructure/monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
@@ -233,7 +245,7 @@ services:
 
   fluentd:
     build:
-      context: ./monitoring/fluentd
+      context: ./infrastructure/monitoring/fluentd
       dockerfile: Dockerfile
     container_name: fluentd
     restart: on-failure
@@ -241,7 +253,7 @@ services:
       - "${FLUENTD_PORT:-24224}:24224"
       - "${FLUENTD_PORT:-24224}:24224/udp"
     volumes:
-      - ./monitoring/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - ./infrastructure/monitoring/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - fluentd_data:/var/log/fluentd-buffers
@@ -266,7 +278,7 @@ services:
     ports:
       - "${KIBANA_PORT:-5601}:5601"
     volumes:
-      - ./monitoring/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./infrastructure/monitoring/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
       - kibana_data:/usr/share/kibana/data
     depends_on:
       elasticsearch-logs:
@@ -278,6 +290,100 @@ services:
       retries: 5
       start_period: 60s
 
+  # =============================================================================
+  # KONG API GATEWAY INFRASTRUCTURE
+  # =============================================================================
+
+  kong-database:
+    image: postgres:15-alpine
+    container_name: kong-database
+    restart: on-failure
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - kong_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    networks:
+      - kong-net
+
+  kong-migrations:
+    image: kong:3.5.0
+    container_name: kong-migrations
+    command: kong migrations bootstrap
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_PORT: 5432
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - kong-net
+
+  kong-gateway:
+    image: kong:3.5.0
+    container_name: kong-gateway
+    restart: on-failure
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_PORT: 5432
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+      KONG_PLUGINS: "bundled"
+      KONG_LOG_LEVEL: info
+    ports:
+      - "${KONG_PROXY_PORT:-8000}:8000"      # Kong Proxy HTTP
+      - "${KONG_PROXY_SSL_PORT:-8443}:8443"  # Kong Proxy HTTPS
+      - "${KONG_ADMIN_PORT:-8001}:8001"      # Kong Admin API
+      - "${KONG_ADMIN_GUI_PORT:-8002}:8002"  # Kong Admin GUI
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+      recipe-manager:
+        condition: service_healthy
+      calculator:
+        condition: service_started
+      ingredients-balancer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - ./infrastructure/gateway/kong:/usr/local/kong/declarative
+    networks:
+      - kong-net
+      - default
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        fluentd-async: "true"
+        tag: kong-gateway
+
 volumes:
   mysql_data:
   prometheus_data:
@@ -285,3 +391,8 @@ volumes:
   elasticsearch_data:
   fluentd_data:
   kibana_data:
+  kong_data:
+
+networks:
+  kong-net:
+    driver: bridge

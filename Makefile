@@ -1,4 +1,4 @@
-.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop help
+.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop kong-setup kong-test kong-show help
 
 help:
 	@echo "Available targets:"
@@ -21,6 +21,9 @@ help:
 	@echo "  logging-stop         - Stop logging stack only"
 	@echo "  observability-start  - Start both monitoring and logging stacks together"
 	@echo "  observability-stop   - Stop both monitoring and logging stacks together"
+	@echo "  kong-setup           - Configure Kong Gateway routes and plugins"
+	@echo "  kong-test            - Test Kong Gateway configuration"
+	@echo "  kong-show            - Show current Kong configuration"
 
 setup:
 	./scripts/setup.sh
@@ -74,3 +77,18 @@ observability-start:
 
 observability-stop:
 	docker-compose stop prometheus grafana elasticsearch-logs fluentd kibana-logs
+
+kong-setup:
+	./scripts/infrastructure/setup-kong.sh setup
+
+kong-clean:
+	./scripts/infrastructure/setup-kong.sh clean
+
+kong-clean-setup:
+	./scripts/infrastructure/setup-kong.sh clean-setup
+
+kong-test:
+	./scripts/infrastructure/setup-kong.sh test
+
+kong-show:
+	./scripts/infrastructure/setup-kong.sh show

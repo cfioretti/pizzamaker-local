@@ -87,7 +87,7 @@ groups:
   - name: infrastructure_alerts
     rules:
       - alert: ServiceDown
-        expr: up{job=~"recipe-manager|calculator|ingredients-balancer"} == 0
+        expr: up{job=~"recipe-manager|calculator|ingredients-balancer|kong-gateway"} == 0
         for: 1m
         labels:
           severity: critical
@@ -112,4 +112,57 @@ groups:
           service: mysql
         annotations:
           summary: "MySQL connection pool nearly exhausted"
-          description: "MySQL connection pool usage is above 80%" 
+          description: "MySQL connection pool usage is above 80%"
+
+  # Kong Gateway Alerts
+  - name: kong_gateway_alerts
+    rules:
+      - alert: KongGatewayDown
+        expr: up{job="kong-gateway"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "Kong Gateway is down"
+          description: "Kong Gateway has been down for more than 30 seconds"
+
+      - alert: KongHighLatency
+        expr: histogram_quantile(0.95, rate(kong_latency_bucket[5m])) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "Kong Gateway high latency"
+          description: "95th percentile latency is above 1 second for 2 minutes"
+
+      - alert: KongHighErrorRate
+        expr: rate(kong_http_status{code=~"5.."}[5m]) / rate(kong_http_status[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          component: api-gateway
+        annotations:
+          summary: "Kong Gateway high error rate"
+          description: "Error rate is above 5% for 1 minute"
+
+      - alert: KongUpstreamTargetDown
+        expr: kong_upstream_target_health == 0
+        for: 30s
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "Kong upstream target {{ $labels.upstream }} is unhealthy"
+          description: "Upstream target {{ $labels.target }} in {{ $labels.upstream }} is down"
+
+      - alert: KongRateLimitingTriggered
+        expr: rate(kong_rate_limiting_consumers_exceeded[5m]) > 10
+        for: 30s
+        labels:
+          severity: warning
+          component: api-gateway
+        annotations:
+          summary: "Kong rate limiting frequently triggered"
+          description: "Rate limiting is being triggered more than 10 times per second" 
