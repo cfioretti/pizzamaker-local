@@ -1,0 +1,93 @@
+# Traefik Dynamic Configuration
+
+http:
+  services:
+    recipe-manager:
+      loadBalancer:
+        servers:
+          - url: "http://recipe-manager:8080"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+    calculator:
+      loadBalancer:
+        servers:
+          - url: "http://calculator:8080"
+    balancer:
+      loadBalancer:
+        servers:
+          - url: "http://ingredients-balancer:8081"
+  # API Routes
+  routers:
+    recipes-api:
+      rule: "PathPrefix(`/api/v1/recipes`)"
+      service: "recipe-manager"
+      entryPoints:
+        - "web"
+      middlewares:
+        - "cors-headers"
+        - "rate-limit"
+        - "security-headers"
+    health-check:
+      rule: "Path(`/health`) || Path(`/api/health`)"
+      service: "recipe-manager"
+      entryPoints:
+        - "web"
+      middlewares:
+        - "cors-headers"
+    # Metrics Routes for Prometheus scraping
+    calculator-metrics:
+      rule: "Path(`/metrics`) && Host(`calculator.local`)"
+      service: "calculator"
+      entryPoints:
+        - "web"
+    balancer-metrics:
+      rule: "Path(`/metrics`) && Host(`balancer.local`)"
+      service: "balancer"
+      entryPoints:
+        - "web"
+  middlewares:
+    cors-headers:
+      headers:
+        accessControlAllowOriginList:
+          - "http://localhost:3000"    # Frontend
+          - "http://localhost:3001"    # Grafana
+          - "http://localhost:16686"   # Jaeger
+          - "*"                        # Allow all origins for development
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+        accessControlAllowHeaders:
+          - "Accept"
+          - "Authorization"
+          - "Content-Type"
+          - "X-Request-ID"
+          - "X-Correlation-ID"
+          - "Cache-Control"
+          - "If-None-Match"
+          - "If-Modified-Since"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+    rate-limit:
+      rateLimit:
+        average: 50
+        burst: 100
+    request-size-limit:
+      buffering:
+        maxRequestBodyBytes: 10485760  # 10MB
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+    compression:
+      compress: {}

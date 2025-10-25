@@ -1,4 +1,4 @@
-.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop kong-setup kong-test kong-show help
+.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop traefik-start traefik-stop traefik cache-start cache-stop cache help
 
 help:
 	@echo "Available targets:"
@@ -78,14 +78,35 @@ observability-start:
 observability-stop:
 	docker-compose stop prometheus grafana elasticsearch-logs fluentd kibana-logs
 
-kong-setup:
-	./scripts/infrastructure/setup-kong.sh setup
+traefik-start:
+	@echo "🚀 Starting Traefik API Gateway..."
+	@docker-compose up -d traefik
+	@echo "✅ Traefik API Gateway started"
 
-kong-clean:
-	./scripts/infrastructure/setup-kong.sh clean
+traefik-stop:
+	@echo "🛑 Stopping Traefik API Gateway..."
+	@docker-compose stop traefik
+	@echo "✅ Traefik API Gateway stopped"
 
-kong-clean-setup:
-	./scripts/infrastructure/setup-kong.sh clean-setup
+traefik:
+	@if [ -z "$(action)" ]; then \
+		echo "Usage: make traefik action=<setup|test|show|monitor|clean|clean-setup>"; \
+		echo ""; \
+		echo "Available actions:"; \
+		echo "  setup        - Setup and validate Traefik configuration"; \
+		echo "  test         - Test Traefik functionality"; \
+		echo "  show         - Show Traefik configuration"; \
+		echo "  monitor      - Monitor Traefik performance"; \
+		echo "  clean        - Clean Traefik containers"; \
+		echo "  clean-setup  - Clean and setup Traefik"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make traefik action=setup"; \
+		echo "  make traefik action=test"; \
+		echo "  make traefik action=show"; \
+	else \
+		./scripts/infrastructure/setup-traefik.sh $(action); \
+	fi
 
 kong-test:
 	./scripts/infrastructure/setup-kong.sh test

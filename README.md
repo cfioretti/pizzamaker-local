@@ -13,8 +13,7 @@ The Pizzamaker application is composed of the following services:
 - **Calculator (calculator)**: Performs dough calculations (gRPC)
 
 ## Infrastructure Services
-- **Kong API Gateway**: Enterprise-grade API gateway with rate limiting, CORS, circuit breaker
-- **PostgreSQL (Kong DB)**: Kong configuration database
+- **Traefik API Gateway**: Lightweight API gateway with auto-discovery, rate limiting, CORS (Kubernetes-ready)
 - **MySQL**: Application database for storing recipes
 - **Jaeger**: Distributed tracing system for observability
 
@@ -53,14 +52,11 @@ This project follows an infrastructure-centric organization for better scalabili
 ```
 pizzamaker-local/
 ├── infrastructure/           # Infrastructure configuration files
-│   ├── gateway/             # API Gateway configurations
-│   │   └── kong/           # Kong Gateway config and plugins
-│   └── monitoring/         # Observability stack
-│       ├── prometheus/     # Metrics collection
-│       ├── grafana/        # Dashboards and visualization
-│       ├── elasticsearch/  # Log storage
-│       ├── fluentd/        # Log processing
-│       └── kibana/         # Log analysis and visualization
+│   ├── gateway/             # API Gateway configurations (Kong)
+│   ├── caching/             # Multi-level caching system (Redis)
+│   ├── monitoring/          # Observability stack (Prometheus, Grafana, EFK)
+│   ├── NETWORK_ARCHITECTURE.md  # Network design documentation
+│   └── README.md            # Infrastructure overview
 ├── scripts/                # Automation scripts
 │   ├── infrastructure/     # Infrastructure management scripts
 │   ├── setup.sh           # Initial environment setup
@@ -120,20 +116,19 @@ Available targets:
 ```
 
 ## Service URLs
-
 When the environment is running, you can access the services at:
 
 ### Core Services
 - **Frontend**: http://localhost:3000
-- **Recipe Manager API**: http://localhost:8000/api/v1/recipes (via Kong)
-- **Health Check**: http://localhost:8000/health (via Kong)
+- **Recipe Manager API**: http://localhost:8000/api/v1/recipes (via Traefik)
+- **Health Check**: http://localhost:8000/health (via Traefik)
 - **Ingredients Balancer gRPC**: localhost:50052 (internal)
 - **Calculator gRPC**: localhost:50051 (internal)
 
-### Kong API Gateway
-- **Kong Proxy**: http://localhost:8000 (Main API entry point)
-- **Kong Admin API**: http://localhost:8001 (Configuration)
-- **Kong Admin GUI**: http://localhost:8002 (Web interface)
+### Traefik API Gateway
+- **Traefik Proxy**: http://localhost:8000 (Main API entry point)
+- **Traefik Dashboard**: http://localhost:8080 (Web interface & monitoring)
+- **Traefik API**: http://localhost:8080/api (Configuration API)
 
 ### Observability Stack
 - **Jaeger UI**: http://localhost:16686 (Distributed Tracing)
@@ -149,14 +144,14 @@ make observability-start
 make observability-stop
 ```
 
-## Kong API Gateway Management
+## Traefik API Gateway Management
 
-After starting the environment, configure Kong Gateway:
+The Traefik API Gateway uses auto-discovery and requires no manual configuration:
 
 ```bash
-make kong-setup
-make kong-test
-make kong-show
+make traefik-start
+make traefik-stop
+make traefik # Show all available actions
 ```
 
 ### Metrics Endpoints

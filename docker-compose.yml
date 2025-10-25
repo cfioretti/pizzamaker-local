@@ -1,7 +1,4 @@
 services:
-  # =============================================================================
-  # APPLICATION SERVICES
-  # =============================================================================
 
   frontend:
     build:
@@ -13,10 +10,12 @@ services:
     ports:
       - "${PIZZAMAKER_FE_PORT:-3000}:80"
     environment:
-      REACT_APP_API_BASE_URL: ${KONG_API_BASE_URL:-http://localhost:8000/api/v1}
+      REACT_APP_API_BASE_URL: ${TRAEFIK_API_BASE_URL:-http://localhost:8000/api/v1}
     depends_on:
-      - kong-gateway
+      - traefik
     restart: on-failure
+    networks:
+      - api-gateway
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
       interval: 10s
@@ -31,9 +30,8 @@ services:
       cache_from:
         - recipe-manager:latest
     image: recipe-manager:latest
-    # Port removed - only accessible through Kong Gateway
     expose:
-      - "8080"  # Internal port for Kong upstream
+      - "8080"  # Internal port for Traefik upstream
     environment:
       CALCULATOR_ADDR: calculator:50051
       INGREDIENTS_BALANCER_ADDR: ingredients-balancer:50052
@@ -46,9 +44,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: recipe-manager
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
-      # Kong integration
-      KONG_ADMIN_URL: http://kong-gateway:8001
-      ENABLE_KONG_TRACING: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.recipe-manager.loadbalancer.server.port=8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -57,6 +55,11 @@ services:
       fluentd:
         condition: service_started
     restart: on-failure
+    networks:
+      - application
+      - api-gateway
+      - caching
+      - observability
     logging:
       driver: fluentd
       options:
@@ -84,11 +87,17 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: ingredients-balancer
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
-      KONG_ADMIN_URL: http://kong-gateway:8001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.balancer.loadbalancer.server.port=8081"
     depends_on:
       jaeger:
         condition: service_started
     restart: on-failure
+    networks:
+      - application
+      - caching
+      - observability
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50052 || exit 1"]
       interval: 10s
@@ -110,11 +119,17 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: calculator
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
-      KONG_ADMIN_URL: http://kong-gateway:8001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.calculator.loadbalancer.server.port=8080"
     depends_on:
       jaeger:
         condition: service_started
     restart: on-failure
+    networks:
+      - application
+      - caching
+      - observability
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
       interval: 10s
@@ -142,6 +157,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ${REPOS_DIR:-./repos}/recipe-manager/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - application
     command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
 
   jaeger:
@@ -157,6 +174,8 @@ services:
       - "${JAEGER_COLLECTOR_PORT:-14268}:14268"
       - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"
       - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"
+    networks:
+      - observability
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686"]
       interval: 10s
@@ -188,6 +207,8 @@ services:
         condition: service_started
       ingredients-balancer:
         condition: service_started
+    networks:
+      - observability
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -214,6 +235,8 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+    networks:
+      - observability
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 10s
@@ -236,6 +259,8 @@ services:
     volumes:
       - ./infrastructure/monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - observability
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
@@ -260,6 +285,8 @@ services:
     depends_on:
       elasticsearch-logs:
         condition: service_healthy
+    networks:
+      - observability
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "24224"]
       interval: 30s
@@ -283,6 +310,8 @@ services:
     depends_on:
       elasticsearch-logs:
         condition: service_healthy
+    networks:
+      - observability
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
       interval: 30s
@@ -290,93 +319,33 @@ services:
       retries: 5
       start_period: 60s
 
-  # =============================================================================
-  # KONG API GATEWAY INFRASTRUCTURE
-  # =============================================================================
-
-  kong-database:
-    image: postgres:15-alpine
-    container_name: kong-database
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
     restart: on-failure
-    environment:
-      POSTGRES_USER: kong
-      POSTGRES_DB: kong
-      POSTGRES_PASSWORD: kongpass
-      POSTGRES_HOST_AUTH_METHOD: trust
-    volumes:
-      - kong_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "kong"]
-      interval: 30s
-      timeout: 30s
-      retries: 3
-      start_period: 30s
-    networks:
-      - kong-net
-
-  kong-migrations:
-    image: kong:3.5.0
-    container_name: kong-migrations
-    command: kong migrations bootstrap
-    environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_PORT: 5432
-      KONG_PG_USER: kong
-      KONG_PG_PASSWORD: kongpass
-      KONG_PG_DATABASE: kong
-    depends_on:
-      kong-database:
-        condition: service_healthy
-    restart: on-failure
-    networks:
-      - kong-net
-
-  kong-gateway:
-    image: kong:3.5.0
-    container_name: kong-gateway
-    restart: on-failure
-    environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_PORT: 5432
-      KONG_PG_USER: kong
-      KONG_PG_PASSWORD: kongpass
-      KONG_PG_DATABASE: kong
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
-      KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
-      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
-      KONG_PLUGINS: "bundled"
-      KONG_LOG_LEVEL: info
+    command:
+      - --configFile=/etc/traefik/traefik.yml
     ports:
-      - "${KONG_PROXY_PORT:-8000}:8000"      # Kong Proxy HTTP
-      - "${KONG_PROXY_SSL_PORT:-8443}:8443"  # Kong Proxy HTTPS
-      - "${KONG_ADMIN_PORT:-8001}:8001"      # Kong Admin API
-      - "${KONG_ADMIN_GUI_PORT:-8002}:8002"  # Kong Admin GUI
+      - "${TRAEFIK_HTTP_PORT:-8000}:8000"      # API Gateway HTTP
+      - "${TRAEFIK_HTTPS_PORT:-8443}:8443"     # API Gateway HTTPS
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080" # Traefik Dashboard
     depends_on:
-      kong-migrations:
-        condition: service_completed_successfully
       recipe-manager:
         condition: service_healthy
-      calculator:
-        condition: service_started
-      ingredients-balancer:
-        condition: service_started
     healthcheck:
-      test: ["CMD", "kong", "health"]
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
-      timeout: 30s
+      timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 10s
     volumes:
-      - ./infrastructure/gateway/kong:/usr/local/kong/declarative
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infrastructure/gateway/traefik/config:/etc/traefik:ro
     networks:
-      - kong-net
-      - default
+      - api-gateway
+      - application
+    environment:
+      - TRAEFIK_LOG_LEVEL=INFO
     logging:
       driver: fluentd
       options:
@@ -394,5 +363,7 @@ volumes:
   kong_data:
 
 networks:
-  kong-net:
-    driver: bridge
+  application:
+  api-gateway:
+  caching:
+  observability:
