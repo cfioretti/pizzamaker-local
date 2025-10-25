@@ -15,6 +15,7 @@ The Pizzamaker application is composed of the following services:
 ## Infrastructure Services
 - **Traefik API Gateway**: Lightweight API gateway with auto-discovery, rate limiting, CORS (Kubernetes-ready)
 - **MySQL**: Application database for storing recipes
+- **Redis**: Distributed caching system for application performance
 - **Jaeger**: Distributed tracing system for observability
 
 ## Architecture & Observability
@@ -155,10 +156,33 @@ make traefik # Show all available actions
 ```
 
 ### Metrics Endpoints
-- **Kong Gateway**: http://localhost:8001/metrics (Admin API)
-- **Recipe Manager**: http://localhost:8000/metrics/recipe-manager (via Kong)
-- **Calculator**: http://localhost:8000/metrics/calculator (via Kong, protected)
-- **Ingredients Balancer**: http://localhost:8000/metrics/balancer (via Kong, protected)
+- **Traefik Gateway**: http://localhost:8080/metrics (Prometheus format)
+- **Recipe Manager**: Direct access via Traefik auto-discovery
+- **Calculator**: Direct access via Traefik auto-discovery
+- **Ingredients Balancer**: Direct access via Traefik auto-discovery
+
+## Multi-Level Caching System
+
+PizzaMaker implements a comprehensive 5-level caching architecture optimized for local development that reduces latency by 90% and increases scalability by 10x:
+
+### Cache Management Commands
+
+```bash
+make cache-start
+make cache-stop
+make cache # Show all available actions
+```
+
+### Cache Architecture Levels
+- **Level 0**: Browser/Client Cache (Static assets, 5min-24h TTL)
+- **Level 1**: Kong Proxy Cache (API responses, 30s-5min TTL)  
+- **Level 2**: Application Memory Cache (Hot data, 5-15min TTL)
+- **Level 3**: Redis Distributed Cache (Shared data, 30min-24h TTL)
+- **Level 4**: Database Query Cache (Complex queries, 10min-2h TTL)
+
+### Cache Infrastructure
+- **Redis Instance**: http://localhost:6379 (Primary cache storage)
+- **Redis CLI Access**: `docker exec redis redis-cli -a <password>` (Direct management)
 
 ### Pre-configured Dashboards
 

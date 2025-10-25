@@ -21,9 +21,12 @@ help:
 	@echo "  logging-stop         - Stop logging stack only"
 	@echo "  observability-start  - Start both monitoring and logging stacks together"
 	@echo "  observability-stop   - Stop both monitoring and logging stacks together"
-	@echo "  kong-setup           - Configure Kong Gateway routes and plugins"
-	@echo "  kong-test            - Test Kong Gateway configuration"
-	@echo "  kong-show            - Show current Kong configuration"
+	@echo "  traefik-start        - Start Traefik API Gateway"
+	@echo "  traefik-stop         - Stop Traefik API Gateway"
+	@echo "  traefik <action>     - Traefik operations: setup|test|show|monitor|clean|clean-setup"
+	@echo "  cache-start          - Start Redis caching system"
+	@echo "  cache-stop           - Stop Redis caching system"
+	@echo "  cache <action>       - Cache operations: setup|test|monitor|benchmark|show|clear"
 
 setup:
 	./scripts/setup.sh
@@ -108,8 +111,31 @@ traefik:
 		./scripts/infrastructure/setup-traefik.sh $(action); \
 	fi
 
-kong-test:
-	./scripts/infrastructure/setup-kong.sh test
+cache-start:
+	docker-compose up -d redis redis-commander
 
-kong-show:
-	./scripts/infrastructure/setup-kong.sh show
+cache-stop:
+	docker-compose stop redis redis-commander
+
+cache:
+	@if [ -z "$(action)" ]; then \
+		echo "Usage: make cache action=<setup|test|monitor|benchmark|show|clear|restart>"; \
+		echo ""; \
+		echo "Available actions:"; \
+		echo "  setup      - Setup Redis cache structure and Kong integration"; \
+		echo "  test       - Test all caching layers functionality"; \
+		echo "  monitor    - Show cache performance metrics and status"; \
+		echo "  benchmark  - Run Redis performance benchmark"; \
+		echo "  show       - Display current cache configuration"; \
+		echo "  clear      - Clear all cache data"; \
+		echo "  restart    - Restart Redis services"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make cache action=setup"; \
+		echo "  make cache action=test"; \
+		echo "  make cache action=monitor"; \
+	elif [ "$(action)" = "restart" ]; then \
+		$(MAKE) cache-stop && $(MAKE) cache-start; \
+	else \
+		./scripts/infrastructure/setup-caching.sh $(action); \
+	fi

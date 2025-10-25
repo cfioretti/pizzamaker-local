@@ -351,7 +351,39 @@ services:
       options:
         fluentd-address: fluentd:24224
         fluentd-async: "true"
-        tag: kong-gateway
+        tag: traefik
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pizzamaker_redis_2024}
+    command: >
+      redis-server 
+      --appendonly yes
+      --save 60 1000
+      --requirepass ${REDIS_PASSWORD:-pizzamaker_redis_2024}
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 300
+      --timeout 0
+      --io-threads 4
+      --io-threads-do-reads yes
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/caching/redis/config/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - caching
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-pizzamaker_redis_2024}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
 volumes:
   mysql_data:
@@ -360,7 +392,7 @@ volumes:
   elasticsearch_data:
   fluentd_data:
   kibana_data:
-  kong_data:
+  redis_data:
 
 networks:
   application:
