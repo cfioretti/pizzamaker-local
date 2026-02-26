@@ -11,6 +11,7 @@ The Pizzamaker application is composed of the following services:
 - **Recipe Manager (recipe-manager)**: Manages pizza recipes (HTTP/REST API)
 - **Ingredients Balancer (ingredients-balancer)**: Calculates ingredient proportions (gRPC)
 - **Calculator (calculator)**: Performs dough calculations (gRPC)
+- **Recipe MCP Server (recipe-mcp-server)**: MCP HTTP/SSE server for AI-driven recipe tools
 
 ## Infrastructure Services
 - **Traefik API Gateway**: Lightweight API gateway with auto-discovery, rate limiting, CORS (Kubernetes-ready)
@@ -65,6 +66,7 @@ pizzamaker-local/
 └── repos/                  # Application microservices (Git submodules)
     ├── pizzamaker-fe/      # Frontend application
     ├── recipe-manager/     # Recipe management service
+    ├── recipe-mcp-server/  # MCP server for AI integrations
     ├── calculator/         # Calculation service
     └── ingredients-balancer/ # Balancing service
 ```
@@ -112,6 +114,9 @@ Available targets:
   rebuild-recipe-manager    - Rebuild only recipe-manager container
   rebuild-ingredients-balancer - Rebuild only ingredients-balancer container
   rebuild-calculator        - Rebuild only calculator container
+  rebuild-recipe-mcp-server - Rebuild only recipe-mcp-server container (profile mcp)
+  mcp-start                 - Start MCP stack (recipe-mcp-server + ollama)
+  mcp-stop                  - Stop MCP stack (recipe-mcp-server + ollama)
   observability-start       - Start both monitoring and logging stacks together
   observability-stop        - Stop both monitoring and logging stacks together
 ```
@@ -122,6 +127,7 @@ When the environment is running, you can access the services at:
 ### Core Services
 - **Frontend**: http://localhost:3000
 - **Recipe Manager API**: http://localhost:8000/api/v1/recipes (via Traefik)
+- **Recipe MCP API**: http://localhost:8000/api/v1/mcp (via Traefik, profile `mcp`)
 - **Health Check**: http://localhost:8000/health (via Traefik)
 - **Ingredients Balancer gRPC**: localhost:50052 (internal)
 - **Calculator gRPC**: localhost:50051 (internal)
@@ -130,6 +136,19 @@ When the environment is running, you can access the services at:
 - **Traefik Proxy**: http://localhost:8000 (Main API entry point)
 - **Traefik Dashboard**: http://localhost:8080 (Web interface & monitoring)
 - **Traefik API**: http://localhost:8080/api (Configuration API)
+
+### MCP Profile (optional)
+To run MCP-related services (recipe MCP server + Ollama):
+
+```bash
+make mcp-start
+```
+
+To stop only the MCP profile services:
+
+```bash
+make mcp-stop
+```
 
 ### Observability Stack
 - **Jaeger UI**: http://localhost:16686 (Distributed Tracing)

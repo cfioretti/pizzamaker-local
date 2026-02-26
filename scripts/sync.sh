@@ -15,7 +15,7 @@ check_pull_output() {
 }
 
 echo "Syncing repositories..."
-for repo in pizzamaker-fe recipe-manager ingredients-balancer calculator; do
+for repo in pizzamaker-fe recipe-manager ingredients-balancer calculator recipe-mcp-server; do
     (
         if [ -d "$repo" ]; then
             echo "Syncing $repo..."

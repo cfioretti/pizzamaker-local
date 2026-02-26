@@ -18,11 +18,28 @@ http:
       loadBalancer:
         servers:
           - url: "http://ingredients-balancer:8081"
+    recipe-mcp-server:
+      loadBalancer:
+        servers:
+          - url: "http://recipe-mcp-server:8080"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
   # API Routes
   routers:
     recipes-api:
       rule: "PathPrefix(`/api/v1/recipes`)"
       service: "recipe-manager"
+      entryPoints:
+        - "web"
+      middlewares:
+        - "cors-headers"
+        - "rate-limit"
+        - "security-headers"
+    mcp-api:
+      rule: "PathPrefix(`/api/v1/mcp`)"
+      service: "recipe-mcp-server"
       entryPoints:
         - "web"
       middlewares:

@@ -73,6 +73,53 @@ services:
       retries: 10
       start_period: 30s
 
+  recipe-mcp-server:
+    profiles: ["mcp"]
+    build:
+      context: ${REPOS_DIR:-./repos}/recipe-mcp-server
+      dockerfile: deployments/Dockerfile
+      cache_from:
+        - recipe-mcp-server:latest
+    image: recipe-mcp-server:latest
+    expose:
+      - "8080"  # Internal HTTP port for MCP and metrics
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_SERVICE_NAME: recipe-mcp-server
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY:-}
+      MCP_SERVER_PORT: ${MCP_SERVER_PORT:-8080}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.recipe-mcp-server.loadbalancer.server.port=8080"
+    depends_on:
+      jaeger:
+        condition: service_started
+      fluentd:
+        condition: service_started
+      recipe-manager:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - application
+      - api-gateway
+      - observability
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        fluentd-async: "true"
+        tag: recipe-mcp-server
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   ingredients-balancer:
     build:
       context: ${REPOS_DIR:-./repos}/ingredients-balancer
@@ -385,6 +432,24 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  ollama:
+    profiles: ["mcp"]
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: on-failure
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD", "ollama", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   mysql_data:
   prometheus_data:
@@ -393,6 +458,7 @@ volumes:
   fluentd_data:
   kibana_data:
   redis_data:
+  ollama_data:
 
 networks:
   application:

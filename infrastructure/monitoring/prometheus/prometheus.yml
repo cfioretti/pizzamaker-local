@@ -31,6 +31,17 @@ scrape_configs:
     metrics_path: /metrics
     scrape_timeout: 10s
 
+  - job_name: 'recipe-mcp-server'
+    static_configs:
+      - targets: ['recipe-mcp-server:8080']
+        labels:
+          service: 'recipe-mcp-server'
+          domain: 'mcp'
+          layer: 'application'
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
   # TODO: to fix Calculator and Ingredients-Balancer HTTP servers (not starting)
   # - job_name: 'calculator'
   #   static_configs:

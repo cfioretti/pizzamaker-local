@@ -12,6 +12,7 @@ REPOS=(
     "https://github.com/cfioretti/recipe-manager.git"
     "https://github.com/cfioretti/ingredients-balancer"
     "https://github.com/cfioretti/calculator"
+    "https://github.com/cfioretti/recipe-mcp-server.git"
 )
 
 for repo in "${REPOS[@]}"; do

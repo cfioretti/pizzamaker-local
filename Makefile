@@ -1,4 +1,4 @@
-.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop traefik-start traefik-stop traefik cache-start cache-stop cache help
+.PHONY: setup sync start stop restart status logs clean rebuild rebuild-frontend rebuild-recipe-manager rebuild-ingredients-balancer rebuild-calculator rebuild-recipe-mcp-server mcp-start mcp-stop monitoring-start monitoring-stop logging-start logging-stop observability-start observability-stop traefik-start traefik-stop traefik cache-start cache-stop cache help
 
 help:
 	@echo "Available targets:"
@@ -15,6 +15,9 @@ help:
 	@echo "  rebuild-recipe-manager - Rebuild only recipe-manager container"
 	@echo "  rebuild-ingredients-balancer - Rebuild only ingredients-balancer container"
 	@echo "  rebuild-calculator   - Rebuild only calculator container"
+	@echo "  rebuild-recipe-mcp-server - Rebuild only recipe-mcp-server container (profile mcp)"
+	@echo "  mcp-start            - Start MCP stack (recipe-mcp-server + ollama)"
+	@echo "  mcp-stop             - Stop MCP stack (recipe-mcp-server + ollama)"
 	@echo "  monitoring-start     - Start monitoring stack (Prometheus + Grafana)"
 	@echo "  monitoring-stop      - Stop monitoring stack only"
 	@echo "  logging-start        - Start logging stack (Elasticsearch + Fluentd + Kibana)"
@@ -74,6 +77,16 @@ rebuild-ingredients-balancer:
 rebuild-calculator:
 	docker-compose build --no-cache calculator
 	docker-compose up -d calculator
+
+rebuild-recipe-mcp-server:
+	COMPOSE_PROFILES=mcp docker-compose build --no-cache recipe-mcp-server
+	COMPOSE_PROFILES=mcp docker-compose up -d recipe-mcp-server
+
+mcp-start:
+	COMPOSE_PROFILES=mcp docker-compose up -d ollama recipe-mcp-server
+
+mcp-stop:
+	COMPOSE_PROFILES=mcp docker-compose stop recipe-mcp-server ollama
 
 observability-start:
 	docker-compose up -d prometheus grafana elasticsearch-logs fluentd kibana-logs
