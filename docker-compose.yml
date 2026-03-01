@@ -44,6 +44,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OTEL_SERVICE_NAME: recipe-manager
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      MCP_CLIENT_TIMEOUT_MS: ${MCP_CLIENT_TIMEOUT_MS:-60000}
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.recipe-manager.loadbalancer.server.port=8080"
@@ -88,7 +89,9 @@ services:
       OTEL_SERVICE_NAME: recipe-mcp-server
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      AI_HTTP_TIMEOUT_MS: ${AI_HTTP_TIMEOUT_MS:-60000}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
       EXTERNAL_API_KEY: ${EXTERNAL_API_KEY:-}
       MCP_SERVER_PORT: ${MCP_SERVER_PORT:-8080}
