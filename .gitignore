@@ -8,4 +8,7 @@
 # Repo folders
 /repos/*
 
+# Environment (secrets)
+.env
+
 /.output.txt
